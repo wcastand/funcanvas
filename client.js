@@ -23,6 +23,8 @@ app.model({
   reducers: {
     init: (data, state) =>
       Object.assign({}, state, data),
+    segment: (segments, state) =>
+      Object.assign({}, state, { segments }),
     updateSegments: (data, state) =>
       state.segments.map(s => s.addPoint()),
   },
@@ -31,13 +33,20 @@ app.model({
       send('updateSegments', done)
       setTimeout(() => send('timerPoint', done), 10)
     },
+    setSegments: (data, state, send, done) => {
+        const segments = []
+        for(let i = 0;i < 31 ; i++) segments.push(Segment(i))
+        send('segment', segments, done)
+    },
     frame: (data, state, send, done) => {
       if (state.canvas === null) {
         const canvas = document.querySelector('#world')
         const ctx = canvas.getContext('2d')
         const segments = []
-        for(let i = 0;i < 25 ; i++) segments.push(Segment(i))
-        send('init', { canvas, ctx, segments }, done)
+        for(let i = 0;i < 15 ; i++) segments.push(Segment(i))
+
+        send('init', { canvas, ctx }, done)
+        send('segment', segments, done)
         send('timerPoint', done)
         return requestAnimationFrame(() => send('frame', done))
       }
@@ -47,9 +56,9 @@ app.model({
           state.ctx.beginPath()
           state.ctx.lineWidth = 1
           state.ctx.lineJoin = state.ctx.lineCap = 'round'
-          state.ctx.strokeStyle = `hsl(${s.angle % 360 * 10}, 86%, 73%)`
           state.ctx.moveTo(s.points[0][0], s.points[0][1])
           for(let i = 1; i < s.points.length - 1; i+=2){
+            state.ctx.strokeStyle = `hsl(${s.angle % 360 * i}, 35%, 57%)`
             state.ctx.quadraticCurveTo(s.points[i][0], s.points[i][1], s.points[i+1][0], s.points[i+1][1])
           }
           state.ctx.stroke()
@@ -65,7 +74,13 @@ app.model({
 })
 
 const view = cache((state, prev, send) =>
-  html`<canvas id='world' width=${window.innerWidth} height=${window.innerHeight}></canvas>`)
+  html`
+    <div>
+      <input type='range' min=5 max=50 value=30 class="segments">
+      <canvas id='world' width=${window.innerWidth} height=${window.innerHeight}></canvas>
+    </div>
+  `
+)
 
 app.router(r => [ r('/', view) ])
 document.addEventListener('DOMContentLoaded', function (event) {
@@ -75,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
 
 const Point = (x, y) => [x, y]
 const Segment = (offset = 0) => {
-  let angle = offset
+  let angle = offset / 360
   let length = 10
   const points = []
 
@@ -86,12 +101,12 @@ const Segment = (offset = 0) => {
     addPoint: () => {
       const x = window.innerWidth / 2 + Math.cos(angle) * length
       const y = window.innerHeight / 2 + Math.sin(angle) * length
-      angle += 2
-      length += 5
-      if(points.length < 100)
+      angle += 1
+      length += .5
+      if(points.length < 500)
         points.push(Point(x, y))
     },
-    angle,
+    angle: offset,
     points
   }
 }
